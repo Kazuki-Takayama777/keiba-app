@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>競馬最適馬券選択アプリ</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1f3b4d;
+            color: white;
+            padding: 20px;
+        }
+        input, button {
+            padding: 10px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 5px;
+            width: 100%;
+        }
+        input {
+            background-color: #2c3e50;
+            color: white;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <h1>競馬最適馬券選択アプリ（単勝・馬連・三連複）</h1>
+    <div>
+        <h2>馬の名前とオッズを入力（5頭分）</h2>
+        <div id="horseInputs">
+            <div><input type="text" placeholder="馬1 名前" id="name1"><input type="number" placeholder="馬1 オッズ" id="odds1"></div>
+            <div><input type="text" placeholder="馬2 名前" id="name2"><input type="number" placeholder="馬2 オッズ" id="odds2"></div>
+            <div><input type="text" placeholder="馬3 名前" id="name3"><input type="number" placeholder="馬3 オッズ" id="odds3"></div>
+            <div><input type="text" placeholder="馬4 名前" id="name4"><input type="number" placeholder="馬4 オッズ" id="odds4"></div>
+            <div><input type="text" placeholder="馬5 名前" id="name5"><input type="number" placeholder="馬5 オッズ" id="odds5"></div>
+        </div>
+        <input type="number" placeholder="掛け金" id="betAmount">
+        <input type="number" placeholder="目標払戻金額" id="targetAmount">
+        <button onclick="calculateBestBet()">最適な馬券を計算</button>
+    </div>
+    <div class="result" id="result"></div>
+
+    <script>
+        function calculateBestBet() {
+            const names = [
+                document.getElementById('name1').value,
+                document.getElementById('name2').value,
+                document.getElementById('name3').value,
+                document.getElementById('name4').value,
+                document.getElementById('name5').value
+            ];
+            const odds = [
+                parseFloat(document.getElementById('odds1').value),
+                parseFloat(document.getElementById('odds2').value),
+                parseFloat(document.getElementById('odds3').value),
+                parseFloat(document.getElementById('odds4').value),
+                parseFloat(document.getElementById('odds5').value)
+            ];
+            const betAmount = parseFloat(document.getElementById('betAmount').value);
+            const targetAmount = parseFloat(document.getElementById('targetAmount').value);
+
+            // 入力値のバリデーション
+            if (names.some(name => name === "") || odds.some(odd => isNaN(odd) || odd <= 0) || isNaN(betAmount) || betAmount <= 0 || isNaN(targetAmount) || targetAmount <= 0) {
+                alert("すべてのフィールドに正しい値を入力してください。");
+                return;
+            }
+
+            // 支持率（勝率）を計算
+            const totalInverseOdds = odds.reduce((sum, o) => sum + (1 / o), 0);
+            const probabilities = odds.map(o => (1 / o) / totalInverseOdds);
+
+            let bestOption = null;
+            let bestProbability = 0;
+            let minDiff = Infinity;
+
+            // 単勝
+            for (let i = 0; i < 5; i++) {
+                const payout = betAmount * odds[i] * 0.8; // 払戻率80%
+                const diff = Math.abs(payout - targetAmount);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    bestOption = `単勝: ${names[i]}`;
+                    bestProbability = probabilities[i] * 100;
+                }
+            }
+
+            // 馬連
+            for (let i = 0; i < 5; i++) {
+                for (let j = i + 1; j < 5; j++) {
+                    const Pij = probabilities[i] * probabilities[j] / (1 - probabilities[i]); // Harvilleの公式
+                    const payout = betAmount * odds[i] * odds[j] * 0.775; // 払戻率77.5%
+                    const diff = Math.abs(payout - targetAmount);
+                    if (diff < minDiff) {
+                        minDiff = diff;
+                        bestOption = `馬連: ${names[i]} - ${names[j]}`;
+                        bestProbability = Pij * 100;
+                    }
+                }
+            }
+
+            // 三連複
+            for (let i = 0; i < 5; i++) {
+                for (let j = i + 1; j < 5; j++) {
+                    for (let k = j + 1; k < 5; k++) {
+                        const Pijk = probabilities[i] * probabilities[j] * probabilities[k] / ((1 - probabilities[i]) * (1 - probabilities[j])); // Harvilleの公式
+                        const payout = betAmount * odds[i] * odds[j] * odds[k] * 0.75; // 払戻率75%
+                        const diff = Math.abs(payout - targetAmount);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            bestOption = `三連複: ${names[i]} - ${names[j]} - ${names[k]}`;
+                            bestProbability = Pijk * 100;
+                        }
+                    }
+                }
+            }
+
+            // 結果表示
+            document.getElementById('result').innerText = `最適な馬券: ${bestOption} (的中率: ${bestProbability.toFixed(2)}%)`;
+        }
+    </script>
+</body>
+</html>
